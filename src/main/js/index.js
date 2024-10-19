@@ -97,10 +97,43 @@ wasm().then(function(module) {
     console.log(gens);
     // load rom
     fetch(ROM_PATH).then(response => response.arrayBuffer())
-    .then(bytes => {
+    .then(async bytes => {
+        console.log({ ROM_PATH })
+        console.log({bytes}, typeof bytes);
+        
+        var cipherbytes = new Uint8Array(bytes);
+        var pbkdf2Iterations = 10000;
+        var passphraseBytes = new TextEncoder('utf-8').encode('megadrive');
+        var pbkdf2Salt = cipherbytes.slice(8, 16);
+        console.log({ pbkdf2Salt })
+
+        var passphrasekey = await window.crypto.subtle.importKey('raw', passphraseBytes, { name: 'PBKDF2'}, false, ['deriveBits']);
+        var pbkdf2Bytes = await window.crypto.subtle.deriveBits({ 'name': 'PBKDF2', salt: pbkdf2Salt, iterations: pbkdf2Iterations, hash: 'SHA-256' }, passphrasekey, 384).catch(err => console.log(err));
+
+        pbkdf2Bytes = new Uint8Array(pbkdf2Bytes);
+        var keyBytes = pbkdf2Bytes.slice(0, 32);
+        var ivBytes = pbkdf2Bytes.slice(32);
+        cipherbytes = cipherbytes.slice(16);
+        console.log({ ivBytes })
+
+        var key = await window.crypto.subtle.importKey('raw', keyBytes, { name: 'AES-CBC', length: 256 }, false, ['decrypt']);
+        var plainTextBytes = await window.crypto.subtle.decrypt({ name: 'AES-CBC', iv: ivBytes }, key, cipherbytes);
+        plainTextBytes = new Uint8Array(plainTextBytes);
+
+        console.log({ plainTextBytes }, typeof plainTextBytes);
+
+
+        const data = [plainTextBytes];
+        console.log({ data }, typeof data)
+        
+
+
+
         // create buffer from wasm
-        romdata = new Uint8Array(gens.HEAPU8.buffer, gens._get_rom_buffer_ref(bytes.byteLength), bytes.byteLength);
-        romdata.set(new Uint8Array(bytes));
+        // romdata = new Uint8Array(gens.HEAPU8.buffer, gens._get_rom_buffer_ref(bytes.byteLength), bytes.byteLength);
+        romdata = new Uint8Array(gens.HEAPU8.buffer, gens._get_rom_buffer_ref(plainTextBytes.byteLength), plainTextBytes.byteLength);
+        // romdata.set(new Uint8Array(bytes));
+        romdata.set(plainTextBytes);
         message("TOUCH HERE!");
         initialized = true;
     });

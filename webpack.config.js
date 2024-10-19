@@ -1,6 +1,7 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin')
 const webpack = require('webpack');
+const DotEnv = require('dotenv-webpack');
 
 module.exports = {
     mode: 'development',
@@ -16,9 +17,10 @@ module.exports = {
             template: './src/main/html/index.html'
         }),
         new webpack.EnvironmentPlugin({
-            'ROM_PATH': 'rom/sonic2.bin',
-            'PORT': 9000
-        })
+            // 'ROM_PATH': 'rom/sonic2.bin',
+            // 'PORT': 9000
+        }),
+        new DotEnv()
     ],
     externals: {
         fs: "empty"
